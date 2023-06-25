@@ -23,7 +23,7 @@ add_executable(${PROJECT_NAME}
    main.cpp
    mainwindow.cpp
    settingswindow.cpp
-)
+        settingswindow.h)
 
 target_link_libraries(${PROJECT_NAME} Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network  ${OPENSSL_LIBRARIES})
 

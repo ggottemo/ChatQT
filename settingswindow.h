@@ -12,6 +12,7 @@
 #include <QLineEdit>
 #include <QCloseEvent>
 #include <QGridLayout>
+#include <QComboBox>
 
 class SettingsWindow : public QWidget {
 Q_OBJECT
@@ -32,6 +33,10 @@ private:
     QLineEdit *apiKeyLineEdit;
     QPushButton *saveButton;
     QGridLayout *layout;
+    QComboBox *modelLevelComboBox;
+    QLineEdit *systemPromptLineEdit;
+
+
 };
 
 

@@ -46,6 +46,12 @@ void MainWindow::openSettingsWindow() {
 void MainWindow::sendRequest() {
     QSettings settings("Test Company", "Test App");
     QString apiKey = settings.value("apiKey").toString();
+    QString modelLevel = settings.value("modelLevel").toString();
+    QString systemPrompt = settings.value("systemPrompt").toString();
+
+    if (modelLevel.isEmpty()) {
+        modelLevel = "gpt-3.5-turbo";
+    }
     qDebug() << "API Key:" << apiKey;
     // Setup request
     QNetworkRequest request;
@@ -55,14 +61,24 @@ void MainWindow::sendRequest() {
 
     // The JSON data
     QJsonObject messageObject;
+    QJsonObject systemMessageObject;
+    if (!systemPrompt.isEmpty()) {
+        qDebug() << "System prompt:" << systemPrompt;
+        systemMessageObject.insert("role", "system");
+        systemMessageObject.insert("content", systemPrompt);
+    }
     messageObject.insert("role", "user");
     messageObject.insert("content", searchLineEdit->text());
 
     QJsonArray messagesArray;
+    if (!systemPrompt.isEmpty()) {
+        messagesArray.append(systemMessageObject);
+    }
     messagesArray.append(messageObject);
-
+    qDebug() << "Messages array:" << messagesArray;
+    qDebug() << "Model level:" << modelLevel;
     QJsonObject mainObject;
-    mainObject.insert("model", "gpt-3.5-turbo");
+    mainObject.insert("model", modelLevel);
     mainObject.insert("messages", messagesArray);
     mainObject.insert("temperature", 0.7);
 
