@@ -33,7 +33,9 @@ private slots:
     void openSettingsWindow();
     void sendRequest();
     void handleReply(QNetworkReply *reply);
-
+    void handleData();
+    void handleEndOfData();
+    void processData(QByteArray &data);
 
 private:
     QPushButton *settingsButton;
@@ -42,6 +44,7 @@ private:
     QTextEdit *resultsTextEdit;
     std::unique_ptr<SettingsWindow> settingsWindow;
     QNetworkAccessManager *manager;
+    QNetworkReply *reply;
 };
 
 

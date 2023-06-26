@@ -18,12 +18,15 @@ find_package(Qt6 COMPONENTS Core Gui Widgets Network REQUIRED)
   set(QT_TLS_PLUGIN_DIR "${_qt6Core_install_prefix}/plugins/tls")
   install(DIRECTORY "${QT_TLS_PLUGIN_DIR}" DESTINATION "${CMAKE_INSTALL_PREFIX}/plugins")
 endif()
+set(app_icon_resource_windows "${CMAKE_CURRENT_SOURCE_DIR}/resources/resources.rc")
+
 
 add_executable(${PROJECT_NAME}
    main.cpp
    mainwindow.cpp
    settingswindow.cpp
-        settingswindow.h)
+        settingswindow.h
+        ${app_icon_resource_windows} )
 
 target_link_libraries(${PROJECT_NAME} Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network  ${OPENSSL_LIBRARIES})
 
@@ -47,3 +50,4 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     "C:/Qt/Tools/OpenSSL/Win_x64/bin/libcrypto-1_1-x64.dll"
     $<TARGET_FILE_DIR:${PROJECT_NAME}>
 )
+

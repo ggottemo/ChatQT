@@ -34,7 +34,7 @@ manager(new QNetworkAccessManager(this)) {
 
     connect(settingsButton, &QPushButton::clicked, this, &MainWindow::openSettingsWindow);
     connect(searchButton, &QPushButton::clicked, this, &MainWindow::sendRequest);
-    connect(manager, &QNetworkAccessManager::finished, this, &MainWindow::handleReply);
+    //connect(manager, &QNetworkAccessManager::finished, this, &MainWindow::handleReply);
 }
 
 MainWindow::~MainWindow() = default;
@@ -81,12 +81,50 @@ void MainWindow::sendRequest() {
     mainObject.insert("model", modelLevel);
     mainObject.insert("messages", messagesArray);
     mainObject.insert("temperature", 0.7);
+    mainObject.insert("stream", true);
 
     QJsonDocument doc(mainObject);
     qDebug() << "Sending request to:" << request.url();
     // Send request
-    manager->post(request, QJsonDocument(doc).toJson());
+    QNetworkReply* reply = manager->post(request, QJsonDocument(doc).toJson());
+     // Connect the readyRead signal to a slot that will handle the data
+    connect(reply, &QNetworkReply::readyRead, this, &MainWindow::handleData);
 
+    // Connect the finished signal to a slot that will handle the end of data
+    connect(reply, &QNetworkReply::finished, this, &MainWindow::handleEndOfData);
+
+
+}
+
+void MainWindow::handleData() {
+
+      // The sender is the QNetworkReply object
+    QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
+
+    // Read the available data and process it
+    QByteArray data = reply->readAll();
+
+    processData(data);
+
+}
+void MainWindow::handleEndOfData() {
+    // The sender is the QNetworkReply object
+     QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
+     if (!reply) {
+         qDebug() << "Reply is null";
+         return;
+     }
+
+    if (reply->error()) {
+        resultsTextEdit->setText(reply->errorString());
+    } else {
+        QByteArray remainingData = reply->readAll();
+        qDebug() << "End of stream. Remaining data:" << remainingData;
+        // process the remaining data, append it to your resultsTextEdit
+        processData(remainingData);
+    }
+
+    reply->deleteLater();
 }
 
 void MainWindow::handleReply(QNetworkReply *reply) {
@@ -103,4 +141,47 @@ qDebug() << "Error:" << reply->error();
         resultsTextEdit->setText(responseText);
     }
     reply->deleteLater();
+}
+
+void MainWindow::processData(QByteArray &data) {
+    QString dataString = QString::fromUtf8(data);
+    if (dataString.startsWith("data: ")) {
+        dataString.remove(0, 6);  // Remove the "data: " prefix
+    }
+
+    // Ignore if it's not a JSON object
+    if (dataString.isEmpty() || !dataString.startsWith("{")) {
+        return;
+    }
+
+    // Parse the JSON data
+    QJsonParseError parseError;
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(dataString.toUtf8(), &parseError);
+    if (parseError.error != QJsonParseError::NoError) {
+        qDebug() << "JSON parse error:" << parseError.errorString();
+        return;
+    }
+
+    QJsonObject jsonObject = jsonDoc.object();
+    QJsonArray choicesArray = jsonObject["choices"].toArray();
+    if (choicesArray.isEmpty()) {
+        qDebug() << "Invalid JSON data";
+        return;
+    }
+
+    QJsonObject choicesObject = choicesArray[0].toObject();
+    if (!choicesObject.contains("delta")) {
+        qDebug() << "Invalid JSON data";
+        return;
+    }
+
+    QJsonObject deltaObject = choicesObject["delta"].toObject();
+    QString content = deltaObject["content"].toString();
+
+    // Update the QTextEdit with the content
+    if (resultsTextEdit) {
+        resultsTextEdit->insertPlainText(content);
+    } else {
+        qDebug() << "resultsTextEdit is null";
+    }
 }
