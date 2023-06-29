@@ -9,6 +9,7 @@
 #include <QMainWindow>
 #include <QPushButton>
 #include <QLineEdit>
+#include <QListView>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -19,6 +20,7 @@
 
 
 #include "settingswindow.h"
+#include "ChatModel.h"
 #include <memory>
 
 class MainWindow: public QMainWindow {
@@ -32,7 +34,7 @@ public:
 private slots:
     void openSettingsWindow();
     void sendRequest();
-    void handleReply(QNetworkReply *reply);
+
     void handleData();
     void handleEndOfData();
     void processData(QByteArray &data);
@@ -41,10 +43,14 @@ private:
     QPushButton *settingsButton;
     QPushButton *searchButton;
     QLineEdit *searchLineEdit;
-    QTextEdit *resultsTextEdit;
+
     std::unique_ptr<SettingsWindow> settingsWindow;
     QNetworkAccessManager *manager;
     QNetworkReply *reply;
+    ChatModel* chatModel;
+    QListView* chatListView;
+
+    int currentMessageIndex;
 };
 
 

@@ -12,7 +12,16 @@ int main(int argc, char *argv[]) {
      qDebug() << QSslSocket::supportsSsl() << QSslSocket::sslLibraryBuildVersionString() << QSslSocket::sslLibraryVersionString();
     QCoreApplication::addLibraryPath("./plugins");
     QApplication app(argc, argv);
-    app.setWindowIcon(QIcon("./resources/icon.ico"));
+    QIcon winIcon (":/images/icon.ico");
+    if (winIcon.isNull()) {
+        qDebug() << "Icon is null";
+    }
+    app.setWindowIcon(winIcon);
+    QPixmap pixmap(":/images/resources/user_small.png");
+if (pixmap.isNull()) {
+    qDebug() << "Failed to load pixmap from image file";
+}
+
     MainWindow mainWindow;
     mainWindow.show();
     return QApplication::exec();

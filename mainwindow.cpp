@@ -5,15 +5,23 @@
 #include <QTextEdit>
 #include <QSettings>
 #include <QJsonObject>
+#include <QListView>
 #include "mainwindow.h"
+#include "ChatDelegate.h"
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), settingsWindow(std::make_unique<SettingsWindow>() ),
-manager(new QNetworkAccessManager(this)) {
+manager(new QNetworkAccessManager(this)), currentMessageIndex(-1) {
     searchLineEdit = new QLineEdit(this);
     searchButton = new QPushButton("Search", this);
     settingsButton = new QPushButton("Settings", this);
-    resultsTextEdit = new QTextEdit(this);
-    resultsTextEdit->setReadOnly(true);
+
+
+    chatListView = new QListView(this);
+    chatModel = new ChatModel(this);
+
+    chatListView->setModel(chatModel);
+    chatListView->setItemDelegate(new ChatDelegate(this));
+
 
     // layout
 
@@ -23,7 +31,7 @@ manager(new QNetworkAccessManager(this)) {
 
     auto *verticalLayout = new QVBoxLayout();
     verticalLayout->addLayout(horizontalLayout);
-    verticalLayout->addWidget(resultsTextEdit);
+    verticalLayout->addWidget(chatListView);
     verticalLayout->addWidget(settingsButton);
 
     auto *centralWidget = new QWidget(this);
@@ -85,6 +93,24 @@ void MainWindow::sendRequest() {
 
     QJsonDocument doc(mainObject);
     qDebug() << "Sending request to:" << request.url();
+
+    // User message to chat
+    ChatModel::ChatMessage userMessage;
+    userMessage.icon = QIcon(":/resources/user_small.png");
+    userMessage.message = searchLineEdit->text();
+    chatModel->addMessage(userMessage);
+    currentMessageIndex = -1;
+
+    // AI Message, initially empty
+    ChatModel::ChatMessage aiMessage;
+    aiMessage.icon = QIcon(":/resources/ai_prof_small.png");
+    aiMessage.message = "";
+    chatModel->addMessage(aiMessage);
+
+    // Get Current index
+    currentMessageIndex = chatModel->rowCount() - 1;
+
+
     // Send request
     QNetworkReply* reply = manager->post(request, QJsonDocument(doc).toJson());
      // Connect the readyRead signal to a slot that will handle the data
@@ -116,7 +142,11 @@ void MainWindow::handleEndOfData() {
      }
 
     if (reply->error()) {
-        resultsTextEdit->setText(reply->errorString());
+        ChatModel::ChatMessage aiMessage;
+        aiMessage.icon = QIcon(":/resources/ai_prof_small.png");
+        aiMessage.message = reply->errorString();
+        chatModel->updateMessage(currentMessageIndex, aiMessage);
+        //resultsTextEdit->setText(reply->errorString());
     } else {
         QByteArray remainingData = reply->readAll();
         qDebug() << "End of stream. Remaining data:" << remainingData;
@@ -125,23 +155,9 @@ void MainWindow::handleEndOfData() {
     }
 
     reply->deleteLater();
+    currentMessageIndex = -1;
 }
 
-void MainWindow::handleReply(QNetworkReply *reply) {
-    qDebug() << "HTTP status code:" << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-qDebug() << "Error:" << reply->error();
-   if (reply->error()) {
-        resultsTextEdit->setText(reply->errorString());
-        return;
-    }
-    else {
-        QJsonDocument json = QJsonDocument::fromJson(reply->readAll());
-        QJsonObject obj = json.object();
-        QString responseText = obj["choices"].toArray()[0].toObject()["message"].toObject()["content"].toString();
-        resultsTextEdit->setText(responseText);
-    }
-    reply->deleteLater();
-}
 
 void MainWindow::processData(QByteArray &data) {
     QString dataString = QString::fromUtf8(data);
@@ -179,9 +195,17 @@ void MainWindow::processData(QByteArray &data) {
     QString content = deltaObject["content"].toString();
 
     // Update the QTextEdit with the content
-    if (resultsTextEdit) {
-        resultsTextEdit->insertPlainText(content);
-    } else {
-        qDebug() << "resultsTextEdit is null";
+//    if (resultsTextEdit) {
+//        resultsTextEdit->insertPlainText(content);
+//    } else {
+//        qDebug() << "resultsTextEdit is null";
+//    }
+    ChatModel::ChatMessage aiMessage;
+    aiMessage.icon = QIcon(":/resources/ai_prof_small.png");
+    aiMessage.message = content;
+
+// Update the AI message
+    if (currentMessageIndex >= 0) {
+        chatModel->updateMessage(currentMessageIndex, aiMessage);
     }
 }

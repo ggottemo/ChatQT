@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resources/ai_prof_small.png</file>
+        <file>resources/user_small.png</file>
+        <file>resources/icon.ico</file>
+    </qresource>
+</RCC>
