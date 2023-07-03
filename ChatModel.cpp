@@ -9,6 +9,22 @@ ChatModel::ChatModel(QObject* parent)
 {
 }
 
+ChatModel::ChatMessage ChatModel::createUserMessage(const QString& message)
+{
+    ChatMessage chatMessage;
+    chatMessage.icon = QIcon(":/resources/user_small.png");
+    chatMessage.message = message;
+    return chatMessage;
+}
+
+ChatModel::ChatMessage ChatModel::createBotMessage(const QString& message)
+{
+    ChatMessage chatMessage;
+    chatMessage.icon = QIcon(":/resources/ai_prof_small.png");
+    chatMessage.message = message;
+    return chatMessage;
+}
+
 void ChatModel::addMessage(const ChatMessage& message)
 {
     beginInsertRows(QModelIndex(), rowCount(), rowCount());

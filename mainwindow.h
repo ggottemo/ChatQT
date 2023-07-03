@@ -43,6 +43,7 @@ private:
     QPushButton *settingsButton;
     QPushButton *searchButton;
     QLineEdit *searchLineEdit;
+    QByteArray buffer;
 
     std::unique_ptr<SettingsWindow> settingsWindow;
     QNetworkAccessManager *manager;

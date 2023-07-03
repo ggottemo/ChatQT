@@ -27,6 +27,9 @@ public:
 
     ChatModel(QObject* parent = nullptr);
 
+    ChatMessage createUserMessage(const QString& message);
+    ChatMessage createBotMessage(const QString& message);
+
     void addMessage(const ChatMessage& message);
     void updateMessage(int index, const ChatMessage& message);
 

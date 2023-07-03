@@ -95,16 +95,13 @@ void MainWindow::sendRequest() {
     qDebug() << "Sending request to:" << request.url();
 
     // User message to chat
-    ChatModel::ChatMessage userMessage;
-    userMessage.icon = QIcon(":/resources/user_small.png");
-    userMessage.message = searchLineEdit->text();
+    ChatModel::ChatMessage userMessage = chatModel->createUserMessage(searchLineEdit->text());
+
     chatModel->addMessage(userMessage);
     currentMessageIndex = -1;
 
     // AI Message, initially empty
-    ChatModel::ChatMessage aiMessage;
-    aiMessage.icon = QIcon(":/resources/ai_prof_small.png");
-    aiMessage.message = "";
+    ChatModel::ChatMessage aiMessage = chatModel->createBotMessage("");
     chatModel->addMessage(aiMessage);
 
     // Get Current index
@@ -123,89 +120,74 @@ void MainWindow::sendRequest() {
 }
 
 void MainWindow::handleData() {
+    QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
+    buffer.append(reply->readAll());
 
-      // The sender is the QNetworkReply object
+    // Find first occurrence of a double newline
+    int endOfEvent = buffer.indexOf("\n\n");
+
+    // Keep processing while there are complete events in the buffer
+    while (endOfEvent >= 0) {
+        QByteArray eventBytes = buffer.left(endOfEvent).trimmed();  // Get complete event
+
+        // Remove processed event from buffer
+        buffer.remove(0, endOfEvent + 2);
+
+        // Only process data: events
+        if (eventBytes.startsWith("data: ")) {
+            eventBytes.remove(0, 6);  // Remove the "data: " prefix
+            processData(eventBytes);
+        }
+
+        // Check if there is another complete event in the buffer
+        endOfEvent = buffer.indexOf("\n\n");
+    }
+}
+
+void MainWindow::handleEndOfData() {
     QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
 
-    // Read the available data and process it
-    QByteArray data = reply->readAll();
-
-    processData(data);
-
-}
-void MainWindow::handleEndOfData() {
-    // The sender is the QNetworkReply object
-     QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
-     if (!reply) {
-         qDebug() << "Reply is null";
-         return;
-     }
+    if (!reply) {
+        qDebug() << "Reply is null";
+        return;
+    }
 
     if (reply->error()) {
-        ChatModel::ChatMessage aiMessage;
-        aiMessage.icon = QIcon(":/resources/ai_prof_small.png");
-        aiMessage.message = reply->errorString();
+        ChatModel::ChatMessage aiMessage = chatModel->createBotMessage(reply->errorString());
         chatModel->updateMessage(currentMessageIndex, aiMessage);
-        //resultsTextEdit->setText(reply->errorString());
     } else {
         QByteArray remainingData = reply->readAll();
         qDebug() << "End of stream. Remaining data:" << remainingData;
-        // process the remaining data, append it to your resultsTextEdit
-        processData(remainingData);
+
+        // append remaining data to buffer, then attempt to process the buffer
+        buffer.append(remainingData);
+        processData(buffer);
+        buffer.clear();
     }
 
     reply->deleteLater();
     currentMessageIndex = -1;
 }
 
-
 void MainWindow::processData(QByteArray &data) {
-    QString dataString = QString::fromUtf8(data);
-    if (dataString.startsWith("data: ")) {
-        dataString.remove(0, 6);  // Remove the "data: " prefix
-    }
-
-    // Ignore if it's not a JSON object
-    if (dataString.isEmpty() || !dataString.startsWith("{")) {
-        return;
-    }
-
     // Parse the JSON data
     QJsonParseError parseError;
-    QJsonDocument jsonDoc = QJsonDocument::fromJson(dataString.toUtf8(), &parseError);
+    qDebug() << "Attempting to parse data:" << data;
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(data, &parseError);
     if (parseError.error != QJsonParseError::NoError) {
         qDebug() << "JSON parse error:" << parseError.errorString();
         return;
     }
 
-    QJsonObject jsonObject = jsonDoc.object();
-    QJsonArray choicesArray = jsonObject["choices"].toArray();
-    if (choicesArray.isEmpty()) {
-        qDebug() << "Invalid JSON data";
-        return;
-    }
+    // Extract content
+    QJsonObject choicesObject = jsonDoc.object()["choices"].toArray()[0].toObject();
+    QString content = choicesObject["delta"].toObject()["content"].toString();
+    ChatModel::ChatMessage aiMessage = chatModel->createBotMessage(content);
 
-    QJsonObject choicesObject = choicesArray[0].toObject();
-    if (!choicesObject.contains("delta")) {
-        qDebug() << "Invalid JSON data";
-        return;
-    }
-
-    QJsonObject deltaObject = choicesObject["delta"].toObject();
-    QString content = deltaObject["content"].toString();
-
-    // Update the QTextEdit with the content
-//    if (resultsTextEdit) {
-//        resultsTextEdit->insertPlainText(content);
-//    } else {
-//        qDebug() << "resultsTextEdit is null";
-//    }
-    ChatModel::ChatMessage aiMessage;
-    aiMessage.icon = QIcon(":/resources/ai_prof_small.png");
-    aiMessage.message = content;
-
-// Update the AI message
-    if (currentMessageIndex >= 0) {
-        chatModel->updateMessage(currentMessageIndex, aiMessage);
+    // Append content to AI message
+    if (!content.isEmpty()) {
+        if (currentMessageIndex >= 0) {
+            chatModel->updateMessage(currentMessageIndex, aiMessage);
+        }
     }
 }
