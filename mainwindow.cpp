@@ -56,6 +56,7 @@ void MainWindow::sendRequest() {
     QString apiKey = settings.value("apiKey").toString();
     QString modelLevel = settings.value("modelLevel").toString();
     QString systemPrompt = settings.value("systemPrompt").toString();
+    auto aiMessage = chatModel->createBotMessage("");
 
     if (modelLevel.isEmpty()) {
         modelLevel = "gpt-3.5-turbo";
@@ -101,7 +102,6 @@ void MainWindow::sendRequest() {
     currentMessageIndex = -1;
 
     // AI Message, initially empty
-    ChatModel::ChatMessage aiMessage = chatModel->createBotMessage("");
     chatModel->addMessage(aiMessage);
 
     // Get Current index
@@ -121,6 +121,8 @@ void MainWindow::sendRequest() {
 
 void MainWindow::handleData() {
     QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
+
+
     buffer.append(reply->readAll());
 
     // Find first occurrence of a double newline
@@ -172,7 +174,7 @@ void MainWindow::handleEndOfData() {
 void MainWindow::processData(QByteArray &data) {
     // Parse the JSON data
     QJsonParseError parseError;
-    qDebug() << "Attempting to parse data:" << data;
+
     QJsonDocument jsonDoc = QJsonDocument::fromJson(data, &parseError);
     if (parseError.error != QJsonParseError::NoError) {
         qDebug() << "JSON parse error:" << parseError.errorString();
@@ -181,13 +183,23 @@ void MainWindow::processData(QByteArray &data) {
 
     // Extract content
     QJsonObject choicesObject = jsonDoc.object()["choices"].toArray()[0].toObject();
+    QJsonObject delta = choicesObject["delta"].toObject();
+    qDebug() << "Delta:" << delta;
     QString content = choicesObject["delta"].toObject()["content"].toString();
-    ChatModel::ChatMessage aiMessage = chatModel->createBotMessage(content);
+    qDebug() << "Content:" << content;
 
-    // Append content to AI message
-    if (!content.isEmpty()) {
+    // Update AI message
+    aiMessage.message = content;
+
+
+    chatModel->updateMessage(currentMessageIndex, aiMessage);
+    qDebug() << aiMessage.message;
+
+    if (!choicesObject["finish_reason"].isNull()) {
         if (currentMessageIndex >= 0) {
-            chatModel->updateMessage(currentMessageIndex, aiMessage);
+
+            aiMessage.message.clear();  // Clear the message for the next chat completion
         }
     }
+
 }

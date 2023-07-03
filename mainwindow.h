@@ -51,6 +51,8 @@ private:
     ChatModel* chatModel;
     QListView* chatListView;
 
+    ChatModel::ChatMessage aiMessage;
+
     int currentMessageIndex;
 };
 
